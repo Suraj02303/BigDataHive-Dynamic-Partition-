@@ -1,0 +1,138 @@
+hadoop command 
+----------------------------------------------------------------------------
+first start the dfs  sbin/start-dfs.sh
+then yarn  sbin/start-yarn.sh
+
+now upload the data on to hdfs
+
+hadoop fs -put <path_in_your_localsystem> <path_in_hdfs>
+example:
+hadoop fs -put /home/suraj/hive-data/Sample-Superstore-Orders.csv /data/
+----------------------------------------------------------------------------
+
+I am using hive through beeline command
+so first i will initiate hive by going to the directory where i have installed apache-hive
+
+bin/beeline -u jdbc:hive2://
+
+create table Orders ( 
+rowId int, orderId string, orderDate date,
+shipDate date,shipMode string,customerId string,customerName string,
+segment string,country string,city string,state string,
+postalCode string,region string,productId string,
+category string,subCategory string,productName string,
+sales double,quantity int,discount double,profit double
+)
+row format delimited fields terminated by ','; 
+
+//loading data into the orders table
+
+load data inpath '/data/SampleSuperstore.csv'
+into table orders;
+
+//if you get the header also you can remove it from the table using below command
+
+ALTER TABLE orders
+SET TBLPROPERTIES ("skip.header.line.count"="1");
+
+set hive.exec.dynamic.partition = true;
+set hive.exec.dynamic.partition.mode = 'nonstrict';
+
+
+set hive.exec.max.dynamic.partitions=1000;
+set hive.exec.max.dynamic.partitions.pernode=1500;
+
+now creating dynamic table
+
+create table Orders_From_Each_Segment (
+rowId int, orderId string, orderDate date,
+shipDate date,shipMode string,
+customerId string,customerName string,
+country string,city string,state string,postalCode string, region string, 
+productId string,category string,subCategory string, productName string,
+sales double,quantity int,discount double,profit double)
+partitioned by (segment string);
+
+// check the table info 
+describe formatted Orders_From_Each_Segment;
+
+insert overwrite table Orders_From_Each_Segment
+partition (segment)
+select rowId,orderId ,orderDate ,shipDate ,shipMode ,customerId ,customerName ,country ,city,state ,postalCode,region ,productId ,category ,subCategory ,
+productName ,sales,quantity,discount,profit,segment from orders;
+
+
+create table Orders_region_state_city (
+rowId int, orderId string, orderDate date,
+shipDate date, shipMode string,
+customerId string,customerName string, segment string,
+country string,postalCode string,
+productId string,category string,subCategory string, productName string,
+sales double,quantity int,discount double,profit double)
+partitioned by (
+region string,
+state string,
+city string);
+
+insert overwrite table Orders_region_state_city
+partition (region, state, city)
+select rowId,orderId ,orderDate ,shipDate ,shipMode ,customerId ,customerName ,segment,country ,postalCode,productId ,category ,subCategory ,
+productName ,sales,quantity,discount,profit, region,state,city from orders;
+
+create table Orders_category_sub_category (
+rowId int,
+orderId string,
+orderDate date,
+shipDate date,
+shipMode string,
+customerId string,
+customerName string,
+segment string,
+country string,
+city string,
+state string,
+postalCode string,
+region string,
+productId string,
+productName string,
+sales double,
+quantity int,
+discount double,
+profit double)
+partitioned by (category string,
+subCategory string);
+
+insert overwrite table Orders_category_sub_category
+partition (category, subCategory)
+select rowId,orderId ,orderDate ,shipDate ,shipMode ,customerId ,customerName ,segment,country ,city,state ,postalCode,region ,productId ,
+productName ,sales,quantity,discount,profit, category ,subCategory from orders;
+
+create table Orders_by_diff_shipMode(
+rowId int,
+orderId string,
+orderDate date,
+shipDate date,
+customerId string,
+customerName string,
+segment string,
+country string,
+city string,
+state string,
+postalCode string,
+region string,
+productId string,
+category string,
+subCategory string,
+productName string,
+sales double,
+quantity int,
+discount double,
+profit double
+)
+partitioned by (shipMode string);
+
+insert overwrite table Orders_by_diff_shipMode
+partition (shipMode)
+select rowId,orderId ,orderDate ,shipDate ,customerId ,customerName ,segment ,country ,city,state ,postalCode,region ,productId ,category ,subCategory ,
+productName ,sales,quantity,discount,profit,shipMode from orders;
+
